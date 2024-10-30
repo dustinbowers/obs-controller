@@ -141,7 +141,7 @@ func (ctl *ObsController) Run() error {
 					return err
 				}
 
-				err := ctl.RunHello()
+				err := ctl.SendSceneItemsToServer()
 				if err != nil {
 					return err
 				}
@@ -180,7 +180,7 @@ func (ctl *ObsController) Run() error {
 						return err
 					}
 
-					err = ctl.RunHello()
+					err = ctl.SendSceneItemsToServer()
 					if err != nil {
 						return err
 					}
@@ -289,8 +289,7 @@ func (ctl *ObsController) SendPing() error {
 	return ctl.WebClient.Send([]byte("ping"))
 }
 
-// TODO: rename this placeholder later
-func (ctl *ObsController) RunHello() error {
+func (ctl *ObsController) SendSceneItemsToServer() error {
 	_, sceneItems, err := ctl.GetSelectedSceneItems()
 	if err != nil {
 		return err
@@ -373,9 +372,4 @@ func (ctl *ObsController) SendInfoWindowConfig() error {
 		return err
 	}
 	return ctl.WebClient.Send(jsonPayload)
-}
-
-func (ctl *ObsController) SendWelcomeMessages() error {
-
-	return nil
 }

@@ -10,7 +10,6 @@ import (
 )
 
 func GetRoomKey(postUrl string) (string, error) {
-
 	// Fetch key for new room
 	response, err := http.Post(postUrl, "application/json", nil)
 	if err != nil {
@@ -46,21 +45,6 @@ func ReadWindowConfig(filename string) (*types.WindowConfig, error) {
 
 	return &config, nil
 }
-
-//func ReadInfoWindowDataConfig(filename string) (string, error) {
-//	file, err := os.Open(filename)
-//	if err != nil {
-//		return "", err
-//	}
-//	defer file.Close()
-//
-//	bytes, err := io.ReadAll(file)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return string(bytes), nil
-//}
 
 func ReadInfoWindowData(filename string) (*types.InfoWindowData, error) {
 	file, err := os.Open(filename)
