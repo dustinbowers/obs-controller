@@ -10,7 +10,6 @@ import (
 	"os"
 )
 
-// Config represents the structure of your configuration file.
 type Config struct {
 	ObsHost        string `toml:"obs_host"`
 	ObsPort        string `toml:"obs_port"`
@@ -31,7 +30,6 @@ func LoadConfig(filename string) (*Config, error) {
 	if err := decoder.Decode(&config); err != nil {
 		return nil, err
 	}
-
 	return &config, nil
 }
 
