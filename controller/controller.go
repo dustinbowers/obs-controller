@@ -90,7 +90,7 @@ func (ctl *ObsController) Run() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("got some scene items: %#+v\n", sceneItems)
+	fmt.Printf("Scene items list: %#+v\n", sceneItems)
 
 	videoOutputSettings, err := ctl.GetVideoOutputSettings()
 	if err != nil {
@@ -149,19 +149,18 @@ func (ctl *ObsController) Run() error {
 			} else {
 				// If we receive a json payload, let's try to process it
 				if sceneItemTransformCommand, err := ctl.ParseSceneItemTransform(message); err == nil {
-
 					sceneItemID, err := strconv.Atoi(sceneItemTransformCommand.ItemID)
 					if err != nil {
 						break
 					}
 
-					// Get updated video settings...
+					// Get updated video settings
 					videoOutputSettings, err := ctl.GetVideoOutputSettings()
 					if err != nil {
 						return err
 					}
 
-					// Get Scene Item Transform details...
+					// Get Scene Item Transform details
 					currentSceneItemTransform, err := ctl.GetSceneItemTransformByID("Scene", sceneItemID)
 					if err != nil {
 						return err
@@ -169,7 +168,7 @@ func (ctl *ObsController) Run() error {
 
 					currentSceneItemTransform.PositionX = sceneItemTransformCommand.X * videoOutputSettings.BaseWidth
 					currentSceneItemTransform.PositionY = sceneItemTransformCommand.Y * videoOutputSettings.BaseHeight
-					currentSceneItemTransform.BoundsWidth = 1.0
+					currentSceneItemTransform.BoundsWidth = 1.0 // TODO: Not sure why these is necessary?
 					currentSceneItemTransform.BoundsHeight = 1.0
 
 					err = ctl.TransformSceneItemByID(
@@ -240,7 +239,6 @@ func (ctl *ObsController) GetSelectedSceneItems() ([]int, []types.WindowDetails,
 }
 
 func (ctl *ObsController) GetSceneItemTransformByID(sceneName string, sceneItemID int) (*typedefs.SceneItemTransform, error) {
-
 	params := sceneitems.NewGetSceneItemTransformParams().
 		WithSceneName(sceneName).
 		WithSceneItemId(sceneItemID)
@@ -248,7 +246,6 @@ func (ctl *ObsController) GetSceneItemTransformByID(sceneName string, sceneItemI
 	if err != nil {
 		return nil, err
 	}
-
 	return response.SceneItemTransform, nil
 }
 

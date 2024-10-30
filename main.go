@@ -65,6 +65,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer ctl.Cleanup()
 
 	err = ctl.Run()
 	if err != nil {
