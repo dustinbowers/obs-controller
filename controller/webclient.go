@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"log"
 )
 
 type WebClient struct {
@@ -21,7 +22,9 @@ func NewWebClient(wsAddr string) (*WebClient, error) {
 		return nil, fmt.Errorf("dial web client: %v", err)
 	}
 	newClient := &WebClient{
-		Conn: conn,
+		Conn:    conn,
+		Message: make(chan string, 10),
+		Close:   make(chan string),
 	}
 	return newClient, nil
 }
@@ -29,7 +32,6 @@ func NewWebClient(wsAddr string) (*WebClient, error) {
 func (c *WebClient) StartReadPump() {
 	for {
 		_, message, err := c.Conn.ReadMessage()
-
 		// Report an issue if the server is gone
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -38,5 +40,12 @@ func (c *WebClient) StartReadPump() {
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, []byte("\n"), []byte(" "), -1))
+		c.Message <- string(message)
 	}
+}
+
+func (c *WebClient) Send(message []byte) error {
+	log.Printf("\tPAYLOAD SENT: %s", message)
+	err := c.Conn.WriteMessage(websocket.TextMessage, message)
+	return err
 }
