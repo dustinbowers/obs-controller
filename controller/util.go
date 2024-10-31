@@ -9,6 +9,7 @@ import (
 	"os"
 )
 
+// GetRoomKey fetches the key for the websocket room from the web proxy
 func GetRoomKey(postUrl string) (string, error) {
 	// Fetch key for new room
 	response, err := http.Post(postUrl, "application/json", nil)
@@ -46,6 +47,7 @@ func ReadWindowConfig(filename string) (*types.WindowConfig, error) {
 	return &config, nil
 }
 
+// ReadInfoWindowData loads InfoWindowData from a file
 func ReadInfoWindowData(filename string) (*types.InfoWindowData, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -66,7 +68,7 @@ func ReadInfoWindowData(filename string) (*types.InfoWindowData, error) {
 	return &data, nil
 }
 
-// SaveInfoWindowData marshals InfoWindowData struct and saves it to a JSON file.
+// SaveInfoWindowData marshals InfoWindowData struct and writes it to disk
 func SaveInfoWindowData(filename string, data *types.InfoWindowData) error {
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {

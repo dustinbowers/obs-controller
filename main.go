@@ -49,22 +49,29 @@ func GetTwitchUserID(twitchUsername string) (string, error) {
 func main() {
 	log.Printf("Welcome Streamer!\n")
 
+	// Load configs from file
 	config, err := LoadConfig("config.toml")
 	if err != nil {
 		log.Fatalf("Failed to load config.toml: %s", err)
 	}
 
+	// Fetch twitch user ID from username
 	twitchUserId, err := GetTwitchUserID(config.TwitchUsername)
+	if err != nil {
+		log.Fatalf("Failed to get twitch user id: %s\n", err)
+	}
 
+	// Create the ObsController that holds the OBS and Web proxy websocket connections
 	ctl, err := controller.NewController(
 		fmt.Sprintf("%s:%s", config.ObsHost, config.ObsPort),
 		config.ObsPassword,
 		twitchUserId)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to create OBS controller: %s", err)
 	}
 	defer ctl.Cleanup()
 
+	// Start the main listen-parse-update event loop
 	err = ctl.Run()
 	if err != nil {
 		log.Fatalf("OBS Controller Error: %s\n", err)

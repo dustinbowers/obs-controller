@@ -7,7 +7,6 @@ import (
 	"github.com/andreykaipov/goobs/api/requests/config"
 	"github.com/andreykaipov/goobs/api/requests/sceneitems"
 	"github.com/andreykaipov/goobs/api/typedefs"
-	"github.com/gorilla/websocket"
 	"log"
 	"obs-controller/controller/types"
 	"slices"
@@ -15,6 +14,7 @@ import (
 	"time"
 )
 
+// ObsController holds the OBS and Web proxy connections
 type ObsController struct {
 	ObsClient    *goobs.Client
 	WebClient    *WebClient
@@ -83,6 +83,10 @@ func PrintObsVersion(client *goobs.Client) error {
 
 func (ctl *ObsController) Run() error {
 	log.Printf("Starting Webclient read pump...")
+
+	// All this function does is listen for incoming web proxy messages, and sends them
+	// into a buffered channel that we can process later in this function
+	// NOTE: this is a go-routine, so this function continues running in its own thread
 	go ctl.WebClient.StartReadPump()
 	log.Printf("Running")
 
@@ -109,13 +113,13 @@ func (ctl *ObsController) Run() error {
 
 	pingTicker := time.NewTicker(30 * time.Second)
 
-	// Now start handling some events
+	// Now start handling any update events
 	log.Printf("OBS Controller running...")
 	for {
 		select {
 		case <-pingTicker.C:
-			if err := ctl.WebClient.Conn.WriteMessage(websocket.TextMessage, []byte("ping")); err != nil {
-				fmt.Printf("error sending ping: %v", err) // TODO: Should we quit here?
+			if err := ctl.SendPing(); err != nil {
+				log.Printf("error sending ping: %v", err)
 			}
 		case close := <-ctl.WebClient.Close:
 			log.Printf("Websocket proxy closed: %v", close)
@@ -141,13 +145,14 @@ func (ctl *ObsController) Run() error {
 					return err
 				}
 
+				// Send the new scene item transforms back to the web proxy
 				err := ctl.SendSceneItemsToServer()
 				if err != nil {
 					return err
 				}
 
 			} else {
-				// If we receive a json payload, let's try to process it
+				// If we receive a json payload, let's try to parse it
 				if sceneItemTransformCommand, err := ctl.ParseSceneItemTransform(message); err == nil {
 					sceneItemID, err := strconv.Atoi(sceneItemTransformCommand.ItemID)
 					if err != nil {
@@ -168,9 +173,10 @@ func (ctl *ObsController) Run() error {
 
 					currentSceneItemTransform.PositionX = sceneItemTransformCommand.X * videoOutputSettings.BaseWidth
 					currentSceneItemTransform.PositionY = sceneItemTransformCommand.Y * videoOutputSettings.BaseHeight
-					currentSceneItemTransform.BoundsWidth = 1.0 // TODO: Not sure why these is necessary?
-					currentSceneItemTransform.BoundsHeight = 1.0
+					currentSceneItemTransform.BoundsWidth = 1.0  // TODO: Not sure why these are necessary
+					currentSceneItemTransform.BoundsHeight = 1.0 // 	  but they are...
 
+					// Send the newly received Scene item transform to OBS
 					err = ctl.TransformSceneItemByID(
 						"Scene",
 						sceneItemID,
@@ -179,6 +185,7 @@ func (ctl *ObsController) Run() error {
 						return err
 					}
 
+					// After the transforms are updated, we need to update the web proxy with the new coordinates
 					err = ctl.SendSceneItemsToServer()
 					if err != nil {
 						return err
