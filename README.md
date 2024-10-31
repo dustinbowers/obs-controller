@@ -1,5 +1,7 @@
 # OBS Controller
 
+![Build action](https://github.com/dustinbowers/obs-controller/actions/workflows/go.yml/badge.svg)
+
 A Go port of the MatisseTec streamerApp
 
 ## Usage
