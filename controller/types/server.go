@@ -27,8 +27,8 @@ type SceneItemDetails struct {
 	ID     int     `json:"name"`
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
+	Width  string  `json:"width"`
+	Height string  `json:"height"`
 	Info   string  `json:"info"`
 	ZIndex int     `json:"zIndex"`
 }

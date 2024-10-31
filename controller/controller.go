@@ -298,8 +298,8 @@ func (ctl *ObsController) SendSceneItemsToServer() error {
 			ID:     item.SceneItemId,
 			X:      item.XLocation,
 			Y:      item.YLocation,
-			Width:  item.Width,
-			Height: item.Height,
+			Width:  fmt.Sprintf("%f", item.Width),
+			Height: fmt.Sprintf("%f", item.Height),
 			Info:   "some data to register later",
 			ZIndex: 10,
 		}
