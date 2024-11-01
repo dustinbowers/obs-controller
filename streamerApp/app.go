@@ -7,7 +7,9 @@ import (
 	"io"
 	"log"
 	"obs-controller/controller"
+	"obs-controller/controller/types"
 	"os"
+	"time"
 )
 
 // App struct
@@ -56,8 +58,16 @@ func (a *App) startup(ctx context.Context) {
 	//	}
 	//}()
 
-	// Start sending connection updates to the
-
+	// Start sending connection updates to the frontend
+	go func() {
+		updateTicker := time.NewTicker(1 * time.Second)
+		for {
+			select {
+			case <-updateTicker.C:
+				runtime.EventsEmit(a.ctx, "connection_status", a.ObsController.ConnectionStatus)
+			}
+		}
+	}()
 }
 
 // domReady is called after the front-end dom has been loaded
@@ -75,9 +85,30 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 
 // shutdown is called at application termination
 func (a *App) shutdown(ctx context.Context) {
-	a.ObsController.Cleanup()
+	if a.ObsController != nil {
+		a.ObsController.Cleanup()
+	}
 }
 
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s!", name)
+}
+
+func (a *App) GetUserConfig() types.Config {
+	return *a.ObsController.UserConfig
+}
+
+func (a *App) Connect() error {
+	err := a.ObsController.Start()
+	if err != nil {
+		log.Printf("Failed to start obs controller: %s", err)
+		a.ObsController.ConnectionStatus = "Error"
+		return err
+	}
+	return nil
+}
+
+func (a *App) Disconnect() error {
+	log.Printf("Attempting disconnect...")
+	return a.ObsController.Stop()
 }

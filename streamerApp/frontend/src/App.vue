@@ -2,14 +2,17 @@
 
 import { EventsOn } from "../wailsjs/runtime/runtime"
 import { useLogStore } from "@/stores/logs"
+import { useStatusStore } from "@/stores/status"
 
 document.body.addEventListener("click", function (event) {
   event.preventDefault();
 });
 
 const log_history = useLogStore();
+const status = useStatusStore();
 
 EventsOn("log_event", (msg: string) => log_history.add_log_line(msg));
+EventsOn("connection_status", (msg: string) => status.update_status(msg))
 
 </script>
 
@@ -25,7 +28,11 @@ EventsOn("log_event", (msg: string) => log_history.add_log_line(msg));
     <!-- Menu -->
     <div class="menu">
       <div class="bar">
-        Status:<div class="bar-btn" @click="">Connected</div>
+        Status:<div @click=""
+          :class="{ 'bar-btn': true, 'connected': status.status != 'Disconnected', 'disconnected': status.status == 'Disconnected' }">
+          {{
+            status.status }}
+        </div>
       </div>
     </div>
   </div>
@@ -39,6 +46,14 @@ EventsOn("log_event", (msg: string) => log_history.add_log_line(msg));
 @import url("./assets/css/reset.css");
 @import url("./assets/css/font.css");
 
+.disconnected {
+  background-color: red;
+}
+
+.connected {
+  background-color: #00862d;
+}
+
 html {
   width: 100%;
   height: 100%;
@@ -50,7 +65,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: "JetBrainsMono";
-  background-color: transparent;
+  // background-color: transparent;
 }
 
 #app {
@@ -121,7 +136,6 @@ body {
         line-height: 30px;
         padding: 0 16px;
         margin-left: 8px;
-        background-color: #00862d;
         border-radius: 2px;
         text-align: center;
         text-decoration: none;
@@ -129,7 +143,7 @@ body {
         font-size: 14px;
 
         &:hover {
-        background-color: #4879eb;
+          background-color: #4879eb;
           color: #ffffff;
           cursor: pointer;
         }

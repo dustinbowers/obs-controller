@@ -11,7 +11,6 @@ import (
 	"log"
 	"obs-controller/controller/types"
 	"slices"
-	"strings"
 	"time"
 )
 
@@ -26,7 +25,7 @@ type ObsController struct {
 	stopNetworkCtx  *context.Context
 	stopNetworkFunc *context.CancelFunc
 
-	connectionStatus string
+	ConnectionStatus string
 }
 
 func NewController() (*ObsController, error) {
@@ -46,13 +45,13 @@ func NewController() (*ObsController, error) {
 		WebClient:        nil,
 		UserConfig:       userConfig,
 		WindowConfig:     windowConfig,
-		connectionStatus: "Disconnected",
+		ConnectionStatus: "Disconnected",
 	}
 	return &newClient, nil
 }
 
 func (ctl *ObsController) Start() error {
-	ctl.connectionStatus = "Connecting..."
+	ctl.ConnectionStatus = "Connecting..."
 	if ctl.stopNetworkFunc != nil {
 		(*ctl.stopNetworkFunc)()
 	}
@@ -86,7 +85,7 @@ func (ctl *ObsController) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to get room key for user %s: %v", twitchUserId, err)
 	}
-	log.Printf("\tRoom key: %s\n", strings.Repeat("*", len(roomKey)))
+	log.Printf("\tRoom key: %s\n", roomKey) // strings.Repeat("*", len(roomKey)))
 
 	// Connect to Websocket Proxy
 	log.Printf("Connecting to proxy...")
@@ -100,7 +99,7 @@ func (ctl *ObsController) Start() error {
 
 	go func() {
 		err := ctl.run(*ctl.stopNetworkCtx)
-		ctl.connectionStatus = "Disconnected"
+		ctl.ConnectionStatus = "Disconnected"
 		if err != nil {
 
 			log.Println(err)
@@ -166,6 +165,7 @@ func (ctl *ObsController) run(ctx context.Context) error {
 
 	// Now start handling any update events
 	log.Printf("OBS Controller running...")
+	ctl.ConnectionStatus = "Connected"
 	for {
 		select {
 		case <-pingTicker.C:
@@ -173,6 +173,7 @@ func (ctl *ObsController) run(ctx context.Context) error {
 				log.Printf("error sending ping: %v", err)
 			}
 		case <-ctx.Done():
+			log.Printf("WebClient listener shutting down...")
 			return nil
 		case msg := <-ctl.WebClient.Close:
 			log.Printf("Websocket proxy closed: %v", msg)
@@ -252,6 +253,13 @@ func (ctl *ObsController) run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (ctl *ObsController) Stop() error {
+	if ctl.stopNetworkFunc != nil {
+		(*ctl.stopNetworkFunc)()
+	}
+	return nil
 }
 
 //
