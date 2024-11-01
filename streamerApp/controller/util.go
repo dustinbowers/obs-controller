@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pelletier/go-toml"
 	"io"
 	"net/http"
 	"obs-controller/controller/types"
@@ -80,4 +81,51 @@ func SaveInfoWindowData(filename string, data *types.InfoWindowData) error {
 	}
 
 	return nil
+}
+
+// LoadConfig reads and parses the TOML config file into a UserConfig struct.
+func LoadConfig(filename string) (*types.Config, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var config types.Config
+	decoder := toml.NewDecoder(file)
+	if err := decoder.Decode(&config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+// SaveConfig writes the given UserConfig struct to a TOML config file.
+func SaveConfig(filename string, config *types.Config) error {
+	// Create or truncate the config file
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Encode the UserConfig struct and write it to the file
+	encoder := toml.NewEncoder(file)
+	if err := encoder.Encode(config); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetTwitchUserID(twitchUsername string) (string, error) {
+	requestUrl := fmt.Sprintf("https://decapi.me/twitch/id/%s", twitchUsername)
+	response, err := http.Get(requestUrl)
+	if err != nil {
+		return "", fmt.Errorf("GET request failed: %v", err)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %v", err)
+	}
+	return string(body), nil
 }
