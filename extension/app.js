@@ -2,7 +2,7 @@
 // TODO add this back in once we try to submit, we dont want to be leaking data
 // console.log = () => {};
 // TODO remove this all before submitting
-const TestAuth = { userId: "U29739507", channelId: "U29739507" };
+const TestAuth = { userId: "29739507", channelId: "29739507" };
 const TESTING = window.location.hostname === "localhost";
 
 DOMPurify.addHook("afterSanitizeAttributes", function (node) {
@@ -95,6 +95,7 @@ function updateObsScreen(data) {
             playerWidth,
             (obsWindow.width.split("p")[0] / obsOutputWidth) * playerWidth,
         );
+        console.log(obsWindow.width, obsOutputWidth, playerWidth);
         console.log(
             "height data: ",
             obsWindow.height,
@@ -254,7 +255,8 @@ function runGameJam(auth) {
             console.log("Connected to the WebSocket server");
             let container = document.getElementById("obs-container");
             container.style.display = "initial";
-            socket.send("Hello Server!");
+            // socket.send("Hello Server!");
+            sendWelcomeAction();
             if (reconnectInterval) {
                 clearInterval(reconnectInterval); // Clear the reconnect interval on successful connection
                 reconnectInterval = null;
@@ -262,48 +264,86 @@ function runGameJam(auth) {
         });
 
         socket.addEventListener("message", (event) => {
-            if (event.data === "ping") {
-                console.log("ping received");
+            // console.log("event: ", event);
+            let envelope = JSON.parse(event.data);
+            if (!envelope.hasOwnProperty('action') || !envelope.hasOwnProperty('data')) {
+                console.warning("Invalid data envelope received: ", event);
                 return;
             }
-            console.log("has data");
-            console.log(event);
-            let eventData = JSON.parse(event.data);
 
-            // If the data contains the screen configuration (like the windows to display)
-            if (Array.isArray(eventData.data)) {
-                obsScreenData = eventData.data;
-                console.log("Screen data received:", obsScreenData);
-                updateObsScreen(obsScreenData);
-            } else {
-                eventData = JSON.parse(eventData);
-                console.log(eventData);
-                // Check if the data contains window bounds
-                if (eventData.hasOwnProperty("bounds")) {
-                    // Update the windowBounds object with the received data
-                    console.log(
-                        "Bounds data received from WebSocket:",
-                        eventData.bounds,
-                    );
-                    windowBounds = eventData.bounds; // This updates the global windowBounds object
-                }
-                if (eventData.hasOwnProperty("infoWindow")) {
-                    console.log(
-                        "infoWindow data received from websocket: ",
-                        eventData.infoWindow,
-                    );
-                    infoWindowData = eventData.infoWindow;
-                }
-                if (eventData.hasOwnProperty("obsSize")) {
-                    console.log(
-                        "obsSize data received from websocket: ",
-                        eventData.obsSize,
-                    );
-                    obsOutputWidth = eventData.obsSize["obsSize"]["width"];
-                    obsOutputHeight = eventData.obsSize["obsSize"]["height"];
-                }
+            let action = envelope.action;
+            let data = envelope.data;
+
+            console.info("Action received!")
+            console.info("\tAction: ", action, data)
+
+            switch (action) {
+                case "ping":
+                    console.info("ping received");
+                    break;
+                case "update_video_settings":
+                    console.log("update_video_settings:", JSON.stringify(data));
+                    obsOutputWidth = data.output_width;
+                    obsOutputHeight = data.output_height;
+                    break;
+                case "update_scene_items":
+                    updateObsScreen(data)
+                    break;
+                case "update_bounds":
+                    windowBounds = data.bounds; // This updates the global windowBounds object 
+                    break;
+                case "update_info_window_config":
+                    infoWindowData = data.infoWindow;
+                    break;
+                default:
+                    console.warn("Unknown action received: ", action, "with data: ", data);
             }
         });
+
+        // TODO: deprecate this
+        // socket.addEventListener("message", (event) => {
+        //     if (event.data === "ping") {
+        //         console.log("ping received");
+        //         return;
+        //     }
+        //     console.log("has data");
+        //     console.log(event);
+        //     let eventData = JSON.parse(event.data);
+
+        //     // If the data contains the screen configuration (like the windows to display)
+        //     if (Array.isArray(eventData.data)) {
+        //         obsScreenData = eventData.data;
+        //         console.log("Screen data received:", obsScreenData);
+        //         updateObsScreen(obsScreenData);
+        //     } else {
+        //         eventData = JSON.parse(eventData);
+        //         console.log(eventData);
+        //         // Check if the data contains window bounds
+        //         if (eventData.hasOwnProperty("bounds")) {
+        //             // Update the windowBounds object with the received data
+        //             console.log(
+        //                 "Bounds data received from WebSocket:",
+        //                 eventData.bounds,
+        //             );
+        //             windowBounds = eventData.bounds; // This updates the global windowBounds object
+        //         }
+        //         if (eventData.hasOwnProperty("infoWindow")) {
+        //             console.log(
+        //                 "infoWindow data received from websocket: ",
+        //                 eventData.infoWindow,
+        //             );
+        //             infoWindowData = eventData.infoWindow;
+        //         }
+        //         if (eventData.hasOwnProperty("obsSize")) {
+        //             console.log(
+        //                 "obsSize data received from websocket: ",
+        //                 eventData.obsSize,
+        //             );
+        //             obsOutputWidth = eventData.obsSize["obsSize"]["width"];
+        //             obsOutputHeight = eventData.obsSize["obsSize"]["height"];
+        //         }
+        //     }
+        // });
 
         socket.addEventListener("close", (_) => {
             console.log("Disconnected from the WebSocket server");
@@ -337,12 +377,15 @@ function runGameJam(auth) {
             const x = parseFloat(draggedElement.style.left) / 100;
             const y = parseFloat(draggedElement.style.top) / 100;
             const data = {
-                name: draggedElement.id, // Assuming each draggableWindow has a unique id
+                // name: draggedElement.id, // Assuming each draggableWindow has a unique id
+                id: Number(draggedElement.id),
                 x: x,
                 y: y,
-                userId: userId,
+                user_id: userId,
             };
-            sendMessage(JSON.stringify(data));
+            //sendMessage(JSON.stringify(data));
+            sendSetSceneItemTransformAction(data)
+
         }
         isDragging = false;
         draggedElement = null;
@@ -354,6 +397,7 @@ function runGameJam(auth) {
         }, 100); // Cooldown for 100ms
     });
 
+    // TODO: deprecate this
     function sendMessage(message) {
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(message);
@@ -363,6 +407,34 @@ function runGameJam(auth) {
                 socket.readyState,
             );
         }
+    }
+
+
+    function sendWelcomeAction() {
+        return sendRawAction("welcome")
+    }
+
+    function sendSetSceneItemTransformAction(transform) {
+        return sendRawAction("set_scene_item_transform", transform)
+    }
+
+    function sendRawAction(action, data = {}) {
+        if (socket.readyState === WebSocket.OPEN) {
+            let envelope = {
+                action: action,
+                data: data
+            }
+            if (typeof x === 'object' && !Array.isArray(x) && x !== null) {
+                console.warn("sendRawMessage(): data is not an object: ", data)
+            }
+            return socket.send(JSON.stringify(envelope))
+        } else {
+            console.error(
+                "WebSocket is not open. Ready state:",
+                socket.readyState
+            )
+        }
+        return null
     }
 }
 

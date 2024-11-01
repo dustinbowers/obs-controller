@@ -1,5 +1,12 @@
 package types
 
+import "encoding/json"
+
+type ActionEnvelope struct {
+	Action string          `json:"action"`
+	Data   json.RawMessage `json:"data"`
+}
+
 type WindowDetails struct {
 	SceneItemId int     `json:"windowId"`
 	SourceName  string  `json:"windowName"`
@@ -19,8 +26,8 @@ type ObsSizeContainer struct {
 }
 
 type ObsSize struct {
-	BaseWidth  float64 `json:"width"`
-	BaseHeight float64 `json:"height"`
+	OutputWidth  float64 `json:"output_width"`
+	OutputHeight float64 `json:"output_height"`
 }
 
 type SceneItemDetails struct {
@@ -43,8 +50,8 @@ type DataDataSceneItemData struct {
 
 type SceneItemTransformMessage struct {
 	Color  string  `json:"color"`
-	ItemID string  `json:"name"` //TODO: this should be int from the server
+	ItemID int     `json:"id"`
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
-	UserID string  `json:"userId"`
+	UserID string  `json:"user_id"`
 }

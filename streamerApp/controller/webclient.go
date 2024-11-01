@@ -2,9 +2,11 @@ package controller
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
+	"obs-controller/controller/types"
 )
 
 type WebClient struct {
@@ -44,8 +46,23 @@ func (c *WebClient) StartReadPump() {
 	}
 }
 
-func (c *WebClient) Send(message []byte) error {
-	log.Printf("\tPAYLOAD SENT: %s", message)
-	err := c.Conn.WriteMessage(websocket.TextMessage, message)
-	return err
+// Deprecated: Send is deprecated. Use SendAction instead
+//func (c *WebClient) Send(message []byte) error {
+//	log.Printf("\tPAYLOAD SENT: %s", message)
+//	err := c.Conn.WriteMessage(websocket.TextMessage, message)
+//	return err
+//}
+
+func (c *WebClient) SendAction(action string, data []byte) error {
+	envelope := types.ActionEnvelope{
+		Action: action,
+		Data:   data,
+	}
+	jsonPayload, err := json.Marshal(envelope)
+	if err != nil {
+		log.Printf("Error marshalling envelope: %v", err)
+		return err
+	}
+	log.Printf("\tPAYLOAD SENT: %s", string(jsonPayload))
+	return c.Conn.WriteMessage(websocket.TextMessage, jsonPayload)
 }
