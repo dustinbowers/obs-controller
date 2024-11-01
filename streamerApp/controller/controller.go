@@ -190,6 +190,8 @@ func (ctl *ObsController) Run() error {
 					if err != nil {
 						return err
 					}
+				} else {
+					log.Printf("Attempting to ParseSceneItemTransform failed: %v", err)
 				}
 			}
 		}
