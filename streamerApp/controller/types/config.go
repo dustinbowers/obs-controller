@@ -8,6 +8,13 @@ type Bound struct {
 	Bottom float64 `json:"bottom"`
 }
 
+type Config struct {
+	ObsHost        string `toml:"obs_host"`
+	ObsPort        string `toml:"obs_port"`
+	ObsPassword    string `toml:"obs_password"`
+	TwitchUsername string `toml:"twitch_username"`
+}
+
 // WindowConfig represents the structure of windowConfig.json.
 type WindowConfig struct {
 	Bounds map[string]Bound `json:"bounds"`

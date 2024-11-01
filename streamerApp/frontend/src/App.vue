@@ -1,8 +1,15 @@
 <script setup lang="ts">
 
+import { EventsOn } from "../wailsjs/runtime/runtime"
+import { useLogStore } from "@/stores/logs"
+
 document.body.addEventListener("click", function (event) {
   event.preventDefault();
 });
+
+const log_history = useLogStore();
+
+EventsOn("log_event", (msg: string) => log_history.add_log_line(msg));
 
 </script>
 
@@ -12,12 +19,13 @@ document.body.addEventListener("click", function (event) {
     <!-- navigation -->
     <div class="nav">
       <router-link to="/">Main</router-link>
+      <router-link to="/settings">Settings</router-link>
       <router-link to="/logs">Logs</router-link>
     </div>
     <!-- Menu -->
     <div class="menu">
       <div class="bar">
-        <div class="bar-btn" @click="onclickQuit">Enable</div>
+        Status:<div class="bar-btn" @click="">Connected</div>
       </div>
     </div>
   </div>
@@ -60,25 +68,26 @@ body {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  height: 50px;
+  height: 64px;
   padding: 0 10px;
+  color: #ffffff;
   background-color: rgba(30, 45, 53, 0.9);
 
   .nav {
     a {
       display: inline-block;
       min-width: 50px;
-      height: 30px;
-      line-height: 30px;
-      padding: 0 5px;
-      margin-right: 8px;
+      height: 42px;
+      line-height: 42px;
+      padding: 0 64px;
+      margin-right: 16px;
       // background-color: #ab7edc;
       background-color: rgba(24, 85, 90, 0.9);
       border-radius: 2px;
       text-align: center;
       text-decoration: none;
       color: #ffffff;
-      font-size: 14px;
+      font-size: 16px;
       white-space: nowrap;
 
       &:hover,
@@ -97,37 +106,6 @@ body {
     align-items: center;
     justify-content: space-between;
 
-    .language {
-      margin-right: 20px;
-      border-radius: 2px;
-      background-color: #c3c3c3;
-      overflow: hidden;
-
-      .lang-item {
-        display: inline-block;
-        min-width: 50px;
-        height: 30px;
-        line-height: 30px;
-        padding: 0 5px;
-        background-color: transparent;
-        text-align: center;
-        text-decoration: none;
-        color: #000000;
-        font-size: 14px;
-
-        &:hover {
-          background-color: #ff050542;
-          cursor: pointer;
-        }
-
-        &.active {
-          background-color: #ff050542;
-          color: #ffffff;
-          cursor: not-allowed;
-        }
-      }
-    }
-
     .bar {
       display: flex;
       flex-direction: row;
@@ -141,13 +119,13 @@ body {
         min-width: 80px;
         height: 30px;
         line-height: 30px;
-        padding: 0 5px;
+        padding: 0 16px;
         margin-left: 8px;
-        background-color: #3459b0;
+        background-color: #00862d;
         border-radius: 2px;
         text-align: center;
         text-decoration: none;
-        color: #000000;
+        color: #ffffff;
         font-size: 14px;
 
         &:hover {
@@ -162,7 +140,7 @@ body {
 
 .view {
   position: absolute;
-  top: 50px;
+  top: 64px;
   left: 0;
   right: 0;
   bottom: 0;

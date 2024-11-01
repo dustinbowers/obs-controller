@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/andreykaipov/goobs"
@@ -10,62 +11,124 @@ import (
 	"log"
 	"obs-controller/controller/types"
 	"slices"
+	"strings"
 	"time"
 )
 
 // ObsController holds the OBS and Web proxy connections
 type ObsController struct {
-	ObsClient    *goobs.Client
-	WebClient    *WebClient
+	ObsClient *goobs.Client
+	WebClient *WebClient
+
+	UserConfig   *types.Config
 	WindowConfig *types.WindowConfig
+
+	stopNetworkCtx  *context.Context
+	stopNetworkFunc *context.CancelFunc
+
+	connectionStatus string
 }
 
-func NewController(obsHost string, obsPassword string, webUserId string) (*ObsController, error) {
+func NewController() (*ObsController, error) {
+	userConfig, err := LoadConfig("config.toml")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config.toml: %v", err)
+	}
+
 	// Load WindowConfig
 	windowConfig, err := ReadWindowConfig("windowConfig.json")
 	if err != nil {
 		return nil, fmt.Errorf("read window config err: %v", err)
 	}
 
-	// Connect to OBS
-	log.Printf("Connecting to OBS...")
-	obsClient, err := goobs.New(obsHost, goobs.WithPassword(obsPassword))
-	if err != nil {
-		return nil, err
-	}
-	log.Println("Done")
-	if err := PrintObsVersion(obsClient); err != nil {
-		return nil, fmt.Errorf("error printing obs version: %v", err)
-	}
-
-	// Fetch room key for user
-	log.Printf("Fetching room key for %s\n", webUserId)
-	newRoomUrl := fmt.Sprintf("https://websocket.matissetec.dev/lobby/new?user=%s", webUserId)
-	roomKey, err := GetRoomKey(newRoomUrl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get room key for user %s: %v", webUserId, err)
-	}
-	log.Printf("\tRoom key: %s\n", roomKey)
-
-	// Connect to Websocket Proxy
-	log.Printf("Connecting to websocket proxy...")
-	wsAddr := fmt.Sprintf("wss://websocket.matissetec.dev/lobby/connect/streamer?user=%s&key=%s", webUserId, roomKey)
-	webClient, err := NewWebClient(wsAddr)
-	if err != nil {
-		return nil, fmt.Errorf("connection to websocket proxy failed: %v", err)
-	}
-	log.Printf("Done\n")
-
 	newClient := ObsController{
-		ObsClient:    obsClient,
-		WebClient:    webClient,
-		WindowConfig: windowConfig,
+		ObsClient:        nil,
+		WebClient:        nil,
+		UserConfig:       userConfig,
+		WindowConfig:     windowConfig,
+		connectionStatus: "Disconnected",
 	}
 	return &newClient, nil
 }
 
+func (ctl *ObsController) Start() error {
+	ctl.connectionStatus = "Connecting..."
+	if ctl.stopNetworkFunc != nil {
+		(*ctl.stopNetworkFunc)()
+	}
+	stopNetworkCtx, stopNetworkFunc := context.WithCancel(context.Background())
+	ctl.stopNetworkCtx = &stopNetworkCtx
+	ctl.stopNetworkFunc = &stopNetworkFunc
+
+	// Connect to OBS
+	obsHost := fmt.Sprintf("%s:%s", ctl.UserConfig.ObsHost, ctl.UserConfig.ObsPort)
+	log.Printf("Connecting to OBS...")
+	obsClient, err := goobs.New(obsHost, goobs.WithPassword(ctl.UserConfig.ObsPassword))
+	if err != nil {
+		return err
+	}
+	log.Println("Done")
+	if err := PrintObsVersion(obsClient); err != nil {
+		return fmt.Errorf("error printing obs version: %v", err)
+	}
+	ctl.ObsClient = obsClient
+
+	// Fetch twitch user ID from username
+	twitchUserId, err := GetTwitchUserID(ctl.UserConfig.TwitchUsername)
+	if err != nil {
+		log.Fatalf("Failed to get twitch user id: %s\n", err)
+	}
+
+	// Fetch room key for user
+	log.Printf("Fetching room key for %s\n", ctl.UserConfig.TwitchUsername)
+	newRoomUrl := fmt.Sprintf("https://websocket.matissetec.dev/lobby/new?user=%s", twitchUserId)
+	roomKey, err := GetRoomKey(newRoomUrl)
+	if err != nil {
+		return fmt.Errorf("failed to get room key for user %s: %v", twitchUserId, err)
+	}
+	log.Printf("\tRoom key: %s\n", strings.Repeat("*", len(roomKey)))
+
+	// Connect to Websocket Proxy
+	log.Printf("Connecting to proxy...")
+	wsAddr := fmt.Sprintf("wss://websocket.matissetec.dev/lobby/connect/streamer?user=%s&key=%s", twitchUserId, roomKey)
+	webClient, err := NewWebClient(wsAddr)
+	if err != nil {
+		return fmt.Errorf("connection to proxy failed: %v", err)
+	}
+	ctl.WebClient = webClient
+	log.Printf("Done\n")
+
+	go func() {
+		err := ctl.run(*ctl.stopNetworkCtx)
+		ctl.connectionStatus = "Disconnected"
+		if err != nil {
+
+			log.Println(err)
+		}
+	}()
+
+	return nil
+}
+
 func (ctl *ObsController) Cleanup() error {
-	return ctl.ObsClient.Disconnect()
+	if ctl.stopNetworkFunc != nil {
+		(*ctl.stopNetworkFunc)()
+	}
+	// This looks convoluted, but...
+	// the idea is "don't return early without trying to clean up both connections
+	var err1, err2 error
+	if ctl.ObsClient != nil {
+		err1 = ctl.ObsClient.Disconnect()
+	}
+	if ctl.WebClient != nil {
+		err2 = ctl.WebClient.Disconnect()
+	}
+	if err1 != nil {
+		return err1
+	} else if err2 != nil {
+		return err2
+	}
+	return nil
 }
 
 func PrintObsVersion(client *goobs.Client) error {
@@ -80,13 +143,13 @@ func PrintObsVersion(client *goobs.Client) error {
 	return nil
 }
 
-func (ctl *ObsController) Run() error {
+func (ctl *ObsController) run(ctx context.Context) error {
 	log.Printf("Starting Webclient read pump...")
 
 	// All this function does is listen for incoming web proxy messages, and sends them
 	// into a buffered channel that we can process later in this function
 	// NOTE: this is a go-routine, so this function continues running in its own thread
-	go ctl.WebClient.StartReadPump()
+	go ctl.WebClient.StartReadPump(*ctl.stopNetworkCtx)
 	log.Printf("Running")
 
 	videoOutputSettings, err := ctl.GetVideoOutputSettings()
@@ -109,6 +172,8 @@ func (ctl *ObsController) Run() error {
 			if err := ctl.SendPing(); err != nil {
 				log.Printf("error sending ping: %v", err)
 			}
+		case <-ctx.Done():
+			return nil
 		case msg := <-ctl.WebClient.Close:
 			log.Printf("Websocket proxy closed: %v", msg)
 			return nil
@@ -117,11 +182,11 @@ func (ctl *ObsController) Run() error {
 			var action types.ActionEnvelope
 			err := json.Unmarshal([]byte(message), &action)
 			if err != nil {
-				// We SHOULD Ignore unknown messages
+				// TODO: We should probably ignore unknown messages... but I'm leaving this in for now
 				log.Printf("BAD MESSAGE FORMAT: %s", message)
 				break
 			}
-			log.Printf("INBOUND WebClient message\n<<<<<<<\t\t%v", message)
+			log.Printf("INBOUND WebClient message: %v", message)
 
 			switch action.Action {
 			case "welcome":
@@ -323,7 +388,7 @@ func (ctl *ObsController) SendObsSizeConfig(config *config.GetVideoSettingsRespo
 	}
 
 	jsonPayload, err := json.Marshal(payload)
-	log.Printf("Sending OBS Size Config\n")
+	log.Printf("Sending OBS Size UserConfig\n")
 	if err != nil {
 		return err
 	}

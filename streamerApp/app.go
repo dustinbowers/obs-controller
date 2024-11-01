@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"io"
 	"log"
 	"obs-controller/controller"
+	"os"
 )
 
 // App struct
@@ -15,7 +18,20 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{}
+	newApp := &App{}
+
+	// Report logging up to the frontend
+	multiWriter := io.MultiWriter(os.Stdout, newApp)
+	log.SetOutput(multiWriter)
+
+	return newApp
+}
+
+func (a *App) Write(p []byte) (n int, err error) {
+	logLine := string(p)
+	// Emit the log line as an event to the Wails frontend
+	runtime.EventsEmit(a.ctx, "log_event", logLine)
+	return len(p), nil
 }
 
 // startup is called at application startup
@@ -25,42 +41,28 @@ func (a *App) startup(ctx context.Context) {
 
 	log.Printf("Welcome Streamer!\n")
 
-	// Load configs from file
-	config, err := LoadConfig("config.toml")
-	if err != nil {
-		log.Fatalf("Failed to load config.toml: %s", err)
-	}
-
-	// Fetch twitch user ID from username
-	twitchUserId, err := GetTwitchUserID(config.TwitchUsername)
-	if err != nil {
-		log.Fatalf("Failed to get twitch user id: %s\n", err)
-	}
-
 	// Create the ObsController that holds the OBS and Web proxy websocket connections
-	a.ObsController, err = controller.NewController(
-		fmt.Sprintf("%s:%s", config.ObsHost, config.ObsPort),
-		config.ObsPassword,
-		twitchUserId)
+	newController, err := controller.NewController()
 	if err != nil {
 		log.Fatalf("Failed to create OBS controller: %s", err)
 	}
-	defer a.ObsController.Cleanup()
+	a.ObsController = newController
 
 	// Start the main listen-parse-update event loop
-	go func() {
-		err = a.ObsController.Run()
-		if err != nil {
-			log.Printf("OBS Controller Error: %s\n", err)
-		}
-	}()
+	//go func() {
+	//	err = a.ObsController.Start()
+	//	if err != nil {
+	//		log.Printf("OBS Controller Error: %s\n", err)
+	//	}
+	//}()
+
+	// Start sending connection updates to the
 
 }
 
 // domReady is called after the front-end dom has been loaded
 func (a *App) domReady(ctx context.Context) {
 	// Add your action here
-	// 在这里添加你的操作
 }
 
 // beforeClose is called when the application is about to quit,
@@ -73,10 +75,9 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 
 // shutdown is called at application termination
 func (a *App) shutdown(ctx context.Context) {
-	// Perform your teardown here
-	// 在此处做一些资源释放的操作
+	a.ObsController.Cleanup()
 }
 
-func (b *App) Greet(name string) string {
+func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s!", name)
 }
