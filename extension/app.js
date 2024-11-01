@@ -1,4 +1,3 @@
-
 // TODO add this back in once we try to submit, we dont want to be leaking data
 // console.log = () => {};
 // TODO remove this all before submitting
@@ -264,19 +263,17 @@ function runGameJam(auth) {
         });
 
         socket.addEventListener("message", (event) => {
-            // console.log("event: ", event);
             let envelope = JSON.parse(event.data);
             if (!envelope.hasOwnProperty('action') || !envelope.hasOwnProperty('data')) {
-                console.warning("Invalid data envelope received: ", event);
+                console.error("Invalid data envelope received: ", event);
                 return;
             }
 
-            let action = envelope.action;
-            let data = envelope.data;
-
+            let { action, data } = envelope;
             console.info("Action received!")
             console.info("\tAction: ", action, data)
 
+            // Here's where we handle each inbound action
             switch (action) {
                 case "ping":
                     console.info("ping received");
@@ -296,54 +293,9 @@ function runGameJam(auth) {
                     infoWindowData = data.infoWindow;
                     break;
                 default:
-                    console.warn("Unknown action received: ", action, "with data: ", data);
+                    console.warn("Unknown action received: ", action, data);
             }
         });
-
-        // TODO: deprecate this
-        // socket.addEventListener("message", (event) => {
-        //     if (event.data === "ping") {
-        //         console.log("ping received");
-        //         return;
-        //     }
-        //     console.log("has data");
-        //     console.log(event);
-        //     let eventData = JSON.parse(event.data);
-
-        //     // If the data contains the screen configuration (like the windows to display)
-        //     if (Array.isArray(eventData.data)) {
-        //         obsScreenData = eventData.data;
-        //         console.log("Screen data received:", obsScreenData);
-        //         updateObsScreen(obsScreenData);
-        //     } else {
-        //         eventData = JSON.parse(eventData);
-        //         console.log(eventData);
-        //         // Check if the data contains window bounds
-        //         if (eventData.hasOwnProperty("bounds")) {
-        //             // Update the windowBounds object with the received data
-        //             console.log(
-        //                 "Bounds data received from WebSocket:",
-        //                 eventData.bounds,
-        //             );
-        //             windowBounds = eventData.bounds; // This updates the global windowBounds object
-        //         }
-        //         if (eventData.hasOwnProperty("infoWindow")) {
-        //             console.log(
-        //                 "infoWindow data received from websocket: ",
-        //                 eventData.infoWindow,
-        //             );
-        //             infoWindowData = eventData.infoWindow;
-        //         }
-        //         if (eventData.hasOwnProperty("obsSize")) {
-        //             console.log(
-        //                 "obsSize data received from websocket: ",
-        //                 eventData.obsSize,
-        //             );
-        //             obsOutputWidth = eventData.obsSize["obsSize"]["width"];
-        //             obsOutputHeight = eventData.obsSize["obsSize"]["height"];
-        //         }
-        //     }
-        // });
 
         socket.addEventListener("close", (_) => {
             console.log("Disconnected from the WebSocket server");
@@ -397,18 +349,6 @@ function runGameJam(auth) {
         }, 100); // Cooldown for 100ms
     });
 
-    // TODO: deprecate this
-    function sendMessage(message) {
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(message);
-        } else {
-            console.error(
-                "WebSocket is not open. Ready state:",
-                socket.readyState,
-            );
-        }
-    }
-
 
     function sendWelcomeAction() {
         return sendRawAction("welcome")
@@ -425,7 +365,7 @@ function runGameJam(auth) {
                 data: data
             }
             if (typeof x === 'object' && !Array.isArray(x) && x !== null) {
-                console.warn("sendRawMessage(): data is not an object: ", data)
+                console.error("sendRawMessage(): data is not an object: ", data)
             }
             return socket.send(JSON.stringify(envelope))
         } else {
