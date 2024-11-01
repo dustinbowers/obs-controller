@@ -63,6 +63,6 @@ func (c *WebClient) SendAction(action string, data []byte) error {
 		log.Printf("Error marshalling envelope: %v", err)
 		return err
 	}
-	log.Printf("\tPAYLOAD SENT: %s", string(jsonPayload))
+	log.Printf("OUTBOUND message to WebClient: \n>>>>>>>\t\t%s", string(jsonPayload))
 	return c.Conn.WriteMessage(websocket.TextMessage, jsonPayload)
 }

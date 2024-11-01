@@ -89,23 +89,12 @@ func (ctl *ObsController) Run() error {
 	go ctl.WebClient.StartReadPump()
 	log.Printf("Running")
 
-	//sceneItemIDs, sceneItems, err := ctl.GetSelectedSceneItems()
-	//if err != nil {
-	//	return err
-	//}
-	//fmt.Printf("Scene items list: %#+v\n", sceneItems)
-
 	videoOutputSettings, err := ctl.GetVideoOutputSettings()
 	if err != nil {
 		return err
 	}
 
-	//// Send list of window IDs
-	//if err := ctl.SendWindowIDs(sceneItemIDs); err != nil {
-	//	return err
-	//}
-
-	// Send a "ping" to say hello
+	// Send a ping to say hello
 	if err := ctl.SendPing(); err != nil {
 		return err
 	}
@@ -124,15 +113,15 @@ func (ctl *ObsController) Run() error {
 			log.Printf("Websocket proxy closed: %v", msg)
 			return nil
 		case message := <-ctl.WebClient.Message:
-			log.Printf("Websocket proxy message:\n<<<<<<<\t\t%v", message)
 
 			var action types.ActionEnvelope
 			err := json.Unmarshal([]byte(message), &action)
 			if err != nil {
-				log.Printf("error unmarshalling message: %v", err)
+				// We SHOULD Ignore unknown messages
+				log.Printf("BAD MESSAGE FORMAT: %s", message)
 				break
 			}
-			log.Printf("Action unmarshaled: %#+v", action)
+			log.Printf("INBOUND WebClient message\n<<<<<<<\t\t%v", message)
 
 			switch action.Action {
 			case "welcome":
@@ -162,13 +151,7 @@ func (ctl *ObsController) Run() error {
 					log.Printf("error parsing scene item transform command: %v", err)
 					break
 				}
-				log.Printf("PARSED sceneItemTransformCommand: %#+v", sceneItemTransformCommand)
-
-				//sceneItemID, err := strconv.Atoi(sceneItemTransformCommand.ItemID)
-				//if err != nil {
-				//	log.Printf("sceneItemID conversion error: %v", err)
-				//	break
-				//}
+				log.Printf(" sceneItemTransformCommand: %#+v", sceneItemTransformCommand)
 
 				// Get updated video settings
 				videoOutputSettings, err := ctl.GetVideoOutputSettings()
@@ -202,74 +185,6 @@ func (ctl *ObsController) Run() error {
 					return err
 				}
 			}
-
-			// If server says hello, send the "welcome" package
-			//if message == "Hello Server!" {
-			//
-			//	// Send video output settings
-			//	if err := ctl.SendObsSizeConfig(videoOutputSettings); err != nil {
-			//		return err
-			//	}
-			//
-			//	// Send window config
-			//	if err := ctl.SendWindowConfig(); err != nil {
-			//		return err
-			//	}
-			//
-			//	// Send info window data config
-			//	if err := ctl.SendInfoWindowConfig(); err != nil {
-			//		return err
-			//	}
-			//
-			//	// Send the new scene item transforms back to the web proxy
-			//	err := ctl.SendSceneItemsToServer()
-			//	if err != nil {
-			//		return err
-			//	}
-			//
-			//} else {
-			//	// If we receive a json payload, let's try to parse it
-			//	if sceneItemTransformCommand, err := ctl.ParseSceneItemTransform(message); err == nil {
-			//		sceneItemID, err := strconv.Atoi(sceneItemTransformCommand.ItemID)
-			//		if err != nil {
-			//			break
-			//		}
-			//
-			//		// Get updated video settings
-			//		videoOutputSettings, err := ctl.GetVideoOutputSettings()
-			//		if err != nil {
-			//			return err
-			//		}
-			//
-			//		// Get Scene Item Transform details
-			//		currentSceneItemTransform, err := ctl.GetSceneItemTransformByID("Scene", sceneItemID)
-			//		if err != nil {
-			//			return err
-			//		}
-			//
-			//		currentSceneItemTransform.PositionX = sceneItemTransformCommand.X * videoOutputSettings.OutputWidth
-			//		currentSceneItemTransform.PositionY = sceneItemTransformCommand.Y * videoOutputSettings.OutputHeight
-			//		currentSceneItemTransform.BoundsWidth = 1.0  // TODO: Not sure why these are necessary
-			//		currentSceneItemTransform.BoundsHeight = 1.0 // 	  but they are...
-			//
-			//		// Send the newly received Scene item transform to OBS
-			//		err = ctl.TransformSceneItemByID(
-			//			"Scene",
-			//			sceneItemID,
-			//			currentSceneItemTransform)
-			//		if err != nil {
-			//			return err
-			//		}
-			//
-			//		// After the transforms are updated, we need to update the web proxy with the new coordinates
-			//		err = ctl.SendSceneItemsToServer()
-			//		if err != nil {
-			//			return err
-			//		}
-			//	} else {
-			//		log.Printf("Attempting to ParseSceneItemTransform failed: %v", err)
-			//	}
-			//}
 		}
 	}
 }
@@ -338,7 +253,6 @@ func (ctl *ObsController) GetSceneItemTransformByID(sceneName string, sceneItemI
 // /////////////////////
 
 func (ctl *ObsController) TransformSceneItemByID(sceneName string, sceneItemID int, newSceneItemTransform *typedefs.SceneItemTransform) error {
-	fmt.Printf("SceneItemTransform: %#+v\n", newSceneItemTransform)
 	params := sceneitems.NewSetSceneItemTransformParams().
 		WithSceneName(sceneName).
 		WithSceneItemId(sceneItemID).
@@ -393,9 +307,6 @@ func (ctl *ObsController) SendSceneItemsToServer() error {
 		}
 		dataWrappers = append(dataWrappers, dataItemData)
 	}
-	//dataWrappersContainer := types.DataDataSceneItemData{
-	//	Data: dataWrappers,
-	//}
 
 	jsonPayload, err := json.Marshal(dataWrappers)
 	if err != nil {
@@ -404,31 +315,7 @@ func (ctl *ObsController) SendSceneItemsToServer() error {
 	return ctl.WebClient.SendAction("update_scene_items", jsonPayload)
 }
 
-//func (ctl *ObsController) SendWindowIDs(sceneItemIDs []int) error {
-//	for _, id := range sceneItemIDs {
-//		params := types.GetPositionsParams{
-//			Command: "get_positions",
-//			ID:      id,
-//		}
-//		jsonPayload, err := json.Marshal(params)
-//		if err != nil {
-//			return fmt.Errorf("json marshalling failed: %v", err)
-//		}
-//
-//		if err = ctl.WebClient.Send(jsonPayload); err != nil {
-//			return fmt.Errorf("sending json payload failed: %v", err)
-//		}
-//	}
-//	return nil
-//}
-
 func (ctl *ObsController) SendObsSizeConfig(config *config.GetVideoSettingsResponse) error {
-	//payload := types.ObsSizeContainer{
-	//	ObsSize: types.ObsSize{
-	//		OutputWidth:  config.OutputWidth,
-	//		OutputHeight: config.OutputHeight,
-	//	},
-	//}
 
 	payload := types.ObsSize{
 		OutputWidth:  config.BaseWidth,
