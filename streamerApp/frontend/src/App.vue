@@ -1,19 +1,9 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
-
-const { t, availableLocales: languages, locale } = useI18n();
-
-const onclickLanguageHandle = (item: string) => {
-  item !== locale.value ? (locale.value = item) : false;
-};
-
-const onclickMinimise = () => {};
-
-const onclickQuit = () => {};
 
 document.body.addEventListener("click", function (event) {
   event.preventDefault();
 });
+
 </script>
 
 <template>
@@ -21,27 +11,13 @@ document.body.addEventListener("click", function (event) {
   <div class="header">
     <!-- navigation -->
     <div class="nav">
-      <router-link to="/">{{ t("nav.home") }}</router-link>
-      <router-link to="/about">{{ t("nav.about") }}</router-link>
+      <router-link to="/">Main</router-link>
+      <router-link to="/logs">Logs</router-link>
     </div>
     <!-- Menu -->
     <div class="menu">
-      <div class="language">
-        <div
-          v-for="item in languages"
-          :key="item"
-          :class="{ active: item === locale }"
-          @click="onclickLanguageHandle(item)"
-          class="lang-item"
-        >
-          {{ t("languages." + item) }}
-        </div>
-      </div>
       <div class="bar">
-        <div class="bar-btn" @click="onclickMinimise">
-          {{ t("topbar.minimise") }}
-        </div>
-        <div class="bar-btn" @click="onclickQuit">{{ t("topbar.quit") }}</div>
+        <div class="bar-btn" @click="onclickQuit">Enable</div>
       </div>
     </div>
   </div>
@@ -59,6 +35,7 @@ html {
   width: 100%;
   height: 100%;
 }
+
 body {
   width: 100%;
   height: 100%;
@@ -73,9 +50,10 @@ body {
   // width: 900px;
   // height: 520px;
   height: 100%;
-  background-color: rgba(219, 188, 239, 0.9);
+  background-color: rgba(47, 69, 82, 0.9);
   overflow: hidden;
 }
+
 .header {
   display: flex;
   flex-direction: row;
@@ -84,7 +62,8 @@ body {
   justify-content: space-between;
   height: 50px;
   padding: 0 10px;
-  background-color: rgba(171, 126, 220, 0.9);
+  background-color: rgba(30, 45, 53, 0.9);
+
   .nav {
     a {
       display: inline-block;
@@ -93,31 +72,37 @@ body {
       line-height: 30px;
       padding: 0 5px;
       margin-right: 8px;
-      background-color: #ab7edc;
+      // background-color: #ab7edc;
+      background-color: rgba(24, 85, 90, 0.9);
       border-radius: 2px;
       text-align: center;
       text-decoration: none;
-      color: #000000;
+      color: #ffffff;
       font-size: 14px;
       white-space: nowrap;
+
       &:hover,
       &.router-link-exact-active {
-        background-color: #d7a8d8;
+        background-color: rgba(43, 148, 155, 0.9);
+        border-radius: 2px;
         color: #ffffff;
       }
     }
   }
+
   .menu {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: space-between;
+
     .language {
       margin-right: 20px;
       border-radius: 2px;
       background-color: #c3c3c3;
       overflow: hidden;
+
       .lang-item {
         display: inline-block;
         min-width: 50px;
@@ -129,10 +114,12 @@ body {
         text-decoration: none;
         color: #000000;
         font-size: 14px;
+
         &:hover {
           background-color: #ff050542;
           cursor: pointer;
         }
+
         &.active {
           background-color: #ff050542;
           color: #ffffff;
@@ -140,6 +127,7 @@ body {
         }
       }
     }
+
     .bar {
       display: flex;
       flex-direction: row;
@@ -147,6 +135,7 @@ body {
       align-items: center;
       justify-content: flex-end;
       min-width: 150px;
+
       .bar-btn {
         display: inline-block;
         min-width: 80px;
@@ -154,14 +143,15 @@ body {
         line-height: 30px;
         padding: 0 5px;
         margin-left: 8px;
-        background-color: #ab7edc;
+        background-color: #3459b0;
         border-radius: 2px;
         text-align: center;
         text-decoration: none;
         color: #000000;
         font-size: 14px;
+
         &:hover {
-          background-color: #d7a8d8;
+        background-color: #4879eb;
           color: #ffffff;
           cursor: pointer;
         }

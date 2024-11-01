@@ -76,3 +76,7 @@ func (a *App) shutdown(ctx context.Context) {
 	// Perform your teardown here
 	// 在此处做一些资源释放的操作
 }
+
+func (b *App) Greet(name string) string {
+	return fmt.Sprintf("Hello %s!", name)
+}

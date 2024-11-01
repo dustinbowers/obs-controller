@@ -1,75 +1,44 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
+import { ref } from 'vue';
+import { Greet } from "../../wailsjs/go/main/App";
 
-import HelloWorld from "@/components/HelloWorld.vue";
+const name = ref("hi")
+const response = ref("response...")
 
-const { t } = useI18n();
+function getGreet() {
+  Greet(name.value).then((res) => response.value = res);
+}
 </script>
 
 <template>
   <div class="home">
-    <!-- Logo -->
-    <img class="logo" alt="Vue logo" src="../assets/logo.png" />
-    <HelloWorld :msg="t('homepage.welcome')" />
-    <!-- Bottom button -->
-    <div class="link">
-      <a
-        href="https://wails.io/docs/gettingstarted/installation"
-        class="btn start"
-        >{{ t("homepage.getting-started") }}</a
-      >
-      <a
-        href="https://github.com/misitebao/wails-template-vue"
-        class="btn star"
-        >{{ t("homepage.star-me") }}</a
-      >
-    </div>
+    hello HOME
+    <input type="text" v-model="name">
+    <button @click="getGreet">greet me</button>
+    <div>{{ response }}</div>
   </div>
 </template>
 
 <style lang="scss">
 .home {
-  .logo {
-    display: block;
-    width: 620px;
-    height: 280px;
-    margin: 10px auto 10px;
-  }
-  .link {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: center;
-    margin: 18px auto;
-    .btn {
-      display: block;
-      width: 150px;
-      height: 50px;
-      line-height: 50px;
-      padding: 0 5px;
-      margin: 0 30px;
-      border-radius: 8px;
-      text-align: center;
-      font-weight: 700;
-      font-size: 16px;
-      white-space: nowrap;
-      text-decoration: none;
+  button {
+    display: inline-block;
+    min-width: 80px;
+    height: 30px;
+    line-height: 30px;
+    padding: 0 5px;
+    margin-left: 8px;
+    background-color: #3459b0;
+    border-radius: 2px;
+    text-align: center;
+    text-decoration: none;
+    color: #000000;
+    font-size: 14px;
+
+    &:hover {
+      background-color: #4879eb;
+      color: #ffffff;
       cursor: pointer;
-      &.start {
-        background-color: #fd0404;
-        color: #ffffff;
-        &:hover {
-          background-color: #ec2e2e;
-        }
-      }
-      &.star {
-        background-color: #ffffff;
-        color: #fd0404;
-        &:hover {
-          background-color: #f3f3f3;
-        }
-      }
     }
   }
 }

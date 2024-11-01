@@ -3,3 +3,4 @@
 config.toml
 obs-controller
 obs-controller.exe
+build/
