@@ -1,14 +1,27 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"github.com/pelletier/go-toml"
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/logger"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"io"
 	"log"
 	"net/http"
-	"obs-controller/controller"
 	"os"
 )
+
+//go:embed frontend/dist
+var assets embed.FS
+
+//go:embed build/appicon.png
+var icon []byte
 
 type Config struct {
 	ObsHost        string `toml:"obs_host"`
@@ -47,33 +60,75 @@ func GetTwitchUserID(twitchUsername string) (string, error) {
 }
 
 func main() {
-	log.Printf("Welcome Streamer!\n")
+	// Create an instance of the app structure
+	app := NewApp()
 
-	// Load configs from file
-	config, err := LoadConfig("config.toml")
-	if err != nil {
-		log.Fatalf("Failed to load config.toml: %s", err)
-	}
+	// Create application with options
+	err := wails.Run(&options.App{
+		Title:             "wails-vue-js",
+		Width:             900,
+		Height:            600,
+		MinWidth:          900,
+		MinHeight:         600,
+		MaxWidth:          1200,
+		MaxHeight:         800,
+		DisableResize:     false,
+		Fullscreen:        false,
+		Frameless:         false,
+		StartHidden:       false,
+		HideWindowOnClose: false,
+		BackgroundColour:  &options.RGBA{R: 255, G: 255, B: 255, A: 0},
+		Menu:              nil,
+		Logger:            nil,
+		LogLevel:          logger.DEBUG,
+		OnStartup:         app.startup,
+		OnDomReady:        app.domReady,
+		OnBeforeClose:     app.beforeClose,
+		OnShutdown:        app.shutdown,
+		WindowStartState:  options.Normal,
+		AssetServer: &assetserver.Options{
+			Assets:     assets,
+			Handler:    nil,
+			Middleware: nil,
+		},
+		Bind: []interface{}{
+			app,
+		},
+		// Windows platform specific options
+		Windows: &windows.Options{
+			WebviewIsTransparent:              true,
+			WindowIsTranslucent:               false,
+			DisableWindowIcon:                 false,
+			DisableFramelessWindowDecorations: false,
+			WebviewUserDataPath:               "",
+			WebviewBrowserPath:                "",
+			Theme:                             windows.SystemDefault,
+		},
+		// Mac platform specific options
+		Mac: &mac.Options{
+			TitleBar: &mac.TitleBar{
+				TitlebarAppearsTransparent: false,
+				HideTitle:                  true,
+				HideTitleBar:               false,
+				FullSizeContent:            true,
+				UseToolbar:                 false,
+				HideToolbarSeparator:       false,
+			},
+			Appearance:           mac.NSAppearanceNameDarkAqua,
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  true,
+			About: &mac.AboutInfo{
+				Title:   "Wails Template Vue",
+				Message: "A Wails template based on Vue and Vue-Router",
+				Icon:    icon,
+			},
+		},
+		Linux: &linux.Options{
+			Icon: icon,
+		},
+	})
 
-	// Fetch twitch user ID from username
-	twitchUserId, err := GetTwitchUserID(config.TwitchUsername)
 	if err != nil {
-		log.Fatalf("Failed to get twitch user id: %s\n", err)
-	}
-
-	// Create the ObsController that holds the OBS and Web proxy websocket connections
-	ctl, err := controller.NewController(
-		fmt.Sprintf("%s:%s", config.ObsHost, config.ObsPort),
-		config.ObsPassword,
-		twitchUserId)
-	if err != nil {
-		log.Fatalf("Failed to create OBS controller: %s", err)
-	}
-	defer ctl.Cleanup()
-
-	// Start the main listen-parse-update event loop
-	err = ctl.Run()
-	if err != nil {
-		log.Fatalf("OBS Controller Error: %s\n", err)
+		log.Fatal(err)
 	}
 }
